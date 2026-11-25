@@ -9,9 +9,13 @@ from dotenv import load_dotenv
 
 def connect(dbname=None, **options):
     # ENV_FILE chooses a different settings file, such as .env.production.
-    load_dotenv(os.environ.get("ENV_FILE"))
+    env_file = os.environ.get("ENV_FILE")
+    load_dotenv(env_file)
 
     url = os.environ.get("DATABASE_URL")
+    if env_file and not url:
+        raise RuntimeError(f"DATABASE_URL is missing from {env_file}")
+
     if url:
         # An online database must use encryption and prove who it is.
         return psycopg.connect(

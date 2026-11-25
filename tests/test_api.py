@@ -111,6 +111,14 @@ def test_online_database_must_be_encrypted(monkeypatch):
         connect()
 
 
+def test_blank_online_settings_do_not_use_the_local_database(monkeypatch, tmp_path):
+    blank = tmp_path / "blank.env"
+    blank.write_text("DATABASE_URL=\n", encoding="utf-8")
+    monkeypatch.setenv("ENV_FILE", str(blank))
+    with pytest.raises(RuntimeError, match="DATABASE_URL is missing"):
+        connect()
+
+
 def test_health(client):
     response = client.get("/health")
     assert response.status_code == 200
