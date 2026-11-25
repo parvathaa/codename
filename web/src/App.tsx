@@ -5,14 +5,16 @@ import {
   searchGroups,
   type Group,
   type Match,
+  type Reading,
 } from "./api";
 import GroupProfile from "./GroupProfile";
+import NameMeaning from "./NameMeaning";
 
 type View =
   | { kind: "start" }
   | { kind: "loading"; slow: boolean }
   | { kind: "error"; tooMany: boolean }
-  | { kind: "none"; name: string; suggestions: string[] }
+  | { kind: "none"; name: string; suggestions: string[]; readings: Reading[] }
   | { kind: "choose"; name: string; matches: Match[] }
   | { kind: "group"; group: Group; searchedName: string };
 
@@ -25,8 +27,13 @@ async function loadView(
   groupId: number | null,
   signal: AbortSignal,
 ): Promise<View> {
-  const { matches, suggestions } = await searchGroups(name, signal);
-  if (matches.length === 0) return { kind: "none", name, suggestions };
+  const { matches, suggestions, readings = [] } = await searchGroups(
+    name,
+    signal,
+  );
+  if (matches.length === 0) {
+    return { kind: "none", name, suggestions, readings };
+  }
 
   const chosen =
     matches.length === 1
@@ -173,8 +180,10 @@ export default function App() {
               <p>
                 No group found for “{view.name}”.{" "}
                 {view.suggestions.length === 0 &&
+                  view.readings.length === 0 &&
                   "Check the spelling, or try another name from the same article."}
               </p>
+              <NameMeaning name={view.name} readings={view.readings} />
               {view.suggestions.length > 0 && (
                 <>
                   <h2>Did you mean one of these?</h2>

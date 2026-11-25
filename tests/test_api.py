@@ -19,7 +19,7 @@ from api import app, get_connection
 from create_reader import create_reader, reader_url
 from database import connect
 from import_misp import save_vendors, vendors_by_name
-from naming import likely_vendor
+from naming import FIRST_WORDS, LAST_WORDS, decode, likely_vendor, meaning_from
 from rate_limit import RateLimiter
 from setup_database import update_tables
 
@@ -185,12 +185,84 @@ def test_group_page_shows_stated_likely_and_unknown_vendors(client):
         ("APT29", None),
         ("Bear", None),
         ("Bear Group", None),
+        ("IRON HEMLOCK", "Secureworks"),
+        ("Lake Relic", "Google"),
+        ("Iron Tiger", None),
+        ("Silent Lynx", None),
+        ("Cobalt Group", None),
+        ("UNC2452", None),
         ("", None),
     ],
 )
 def test_name_patterns(name, vendor):
     guess = likely_vendor(name)
     assert (guess["name"] if guess else None) == vendor
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("Turbo Panda", [("CrowdStrike", "Panda", "China")]),
+        ("TYPHOON", [("Microsoft", "Typhoon", "China")]),
+        ("Silent Lynx", [("CrowdStrike", "Lynx", "Georgia"), ("Palo Alto", "Lynx", "Belarus")]),
+        ("bronze example", [("Secureworks", "Bronze", "China")]),
+        ("Copper Typhoon", [("Microsoft", "Typhoon", "China")]),
+        ("Cobalt Group", []),
+        ("Panda Express", []),
+        ("APT29", []),
+        ("", []),
+        ("   ", []),
+    ],
+)
+def test_decoder(name, expected):
+    found = [(r["vendor"], r["clue"], r["meaning"]) for r in decode(name)]
+    assert found == expected
+
+
+@pytest.mark.parametrize(
+    ("name", "clue"),
+    [("Storm-1234", "Storm"), ("storm1234", "Storm"), ("UNC9999", "UNC"), ("fin7", "FIN")],
+)
+def test_decoder_reads_numbered_names(name, clue):
+    assert [r["clue"] for r in decode(name)] == [clue]
+
+
+@pytest.mark.parametrize("name", ["Storm-12", "Storm-12345", "UNC", "FINISH", "FIN7x"])
+def test_decoder_ignores_lookalike_numbers(name):
+    assert decode(name) == []
+
+
+def test_every_word_is_lowercase_and_has_a_secure_source():
+    for vendor, (title, url), words in LAST_WORDS + FIRST_WORDS:
+        assert vendor and title and url.startswith("https://")
+        for word, meaning in words.items():
+            assert word == word.lower() and word.isalpha() and meaning
+
+
+def test_meaning_needs_the_matching_vendor():
+    assert meaning_from("Cozy Bear", ["CrowdStrike"])["meaning"] == "Russia"
+    assert meaning_from("Energetic Bear", ["Kaspersky"]) is None
+    assert meaning_from("Lake Relic", ["Google Cloud Blog"])["meaning"] == "Russia"
+    assert meaning_from("Silent Lynx", ["Palo Alto"])["meaning"] == "Belarus"
+    assert meaning_from("Cozy Bear", []) is None
+
+
+def test_search_decodes_an_unknown_name(client):
+    result = client.get("/search", params={"q": " Turbo   PANDA "}).json()
+    assert result["matches"] == []
+    assert result["readings"][0]["meaning"] == "China"
+    assert result["readings"][0]["source"]["url"].startswith("https://")
+
+
+def test_search_for_a_plain_name_has_no_readings(client):
+    result = client.get("/search", params={"q": "purple toaster"}).json()
+    assert result["readings"] == []
+
+
+def test_group_page_shows_a_meaning_only_for_the_matching_vendor(client):
+    apt29, cozy_bear = client.get("/groups/1").json()["aliases"]
+    assert apt29["reading"] is None
+    assert cozy_bear["reading"]["meaning"] == "Russia"
 
 
 def test_misp_entries_are_matched_to_vendors():
