@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from database import connect
 from lookup import normalize
-from naming import likely_vendor
+from naming import decode, likely_vendor, meaning_from
 from rate_limit import RateLimiter
 from signature import is_signed
 
@@ -65,6 +65,7 @@ class SearchResult(BaseModel):
     query: str
     matches: list[Match]
     suggestions: list[str]
+    readings: list["Reading"]
 
 
 class Vendor(BaseModel):
@@ -72,10 +73,18 @@ class Vendor(BaseModel):
     source: Source
 
 
+class Reading(BaseModel):
+    vendor: str
+    clue: str
+    meaning: str
+    source: Source
+
+
 class Alias(BaseModel):
     name: str
     vendors: list[Vendor]
     likely_vendor: Vendor | None
+    reading: Reading | None
     relationship: str
     confidence: str
     source: Source
@@ -177,6 +186,7 @@ def search(
         "query": q,
         "matches": [move_source(row) for row in rows],
         "suggestions": [] if rows else find_suggestions(connection, name),
+        "readings": decode(name),
     }
 
 
@@ -239,4 +249,8 @@ def get_group(
         alias["likely_vendor"] = (
             None if alias["vendors"] else likely_vendor(alias["name"])
         )
+        known = [vendor["name"] for vendor in alias["vendors"]]
+        if alias["likely_vendor"]:
+            known.append(alias["likely_vendor"]["name"])
+        alias["reading"] = meaning_from(alias["name"], known)
     return group

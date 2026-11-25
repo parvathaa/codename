@@ -28,11 +28,11 @@ Online, covering the groups in MITRE ATT&CK.
 - Lets you choose when a name belongs to more than one group
 - Shows a summary, other names and a source
 - Shows which vendor created a name, or a likely vendor from its naming pattern
+- Explains naming patterns such as "Panda" or "Typhoon", even for unknown names
 - Gives every search a link you can share
 
 ## Planned
 
-- Explain naming patterns, such as "Panda" or "Typhoon"
 - Show suspected origin, attacks, tools and techniques
 - Add more sources
 

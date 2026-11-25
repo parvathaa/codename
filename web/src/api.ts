@@ -9,6 +9,13 @@ export type Match = {
   source: Source;
 };
 
+export type Reading = {
+  vendor: string;
+  clue: string;
+  meaning: string;
+  source: Source;
+};
+
 export type Vendor = { name: string; source: Source };
 
 export type Alias = {
@@ -16,6 +23,7 @@ export type Alias = {
   // Missing only while an older version of the API is still running.
   vendors?: Vendor[];
   likely_vendor?: Vendor | null;
+  reading?: Reading | null;
   relationship: string;
   confidence: string;
   source: Source;
@@ -73,7 +81,12 @@ async function getJson<T>(path: string, signal: AbortSignal): Promise<T> {
   return response.json();
 }
 
-export type SearchResult = { matches: Match[]; suggestions: string[] };
+export type SearchResult = {
+  matches: Match[];
+  suggestions: string[];
+  // Missing only while an older version of the API is still running.
+  readings?: Reading[];
+};
 
 export function searchGroups(name: string, signal: AbortSignal) {
   return getJson<SearchResult>(`/search?q=${encodeURIComponent(name)}`, signal);

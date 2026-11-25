@@ -47,6 +47,9 @@ export default function GroupProfile({ group, searchedName }: Props) {
   const otherNames = group.aliases.filter(
     (alias) => alias.name !== group.main_name,
   );
+  const searched = group.aliases.find(
+    (alias) => alias.name.toLowerCase() === searchedName.toLowerCase(),
+  );
   const showMatch =
     searchedName.toLowerCase() !== group.main_name.toLowerCase();
 
@@ -58,6 +61,20 @@ export default function GroupProfile({ group, searchedName }: Props) {
         </p>
       )}
       <h2>{group.main_name}</h2>
+
+      {searched?.reading && (
+        <p className="matched">
+          “{searched.reading.clue}” is{" "}
+          <a
+            href={searched.reading.source.url}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {searched.reading.vendor}’s word
+          </a>{" "}
+          for {searched.reading.meaning}.
+        </p>
+      )}
 
       {group.suspected_origin && (
         <p>Suspected origin: {group.suspected_origin}</p>
@@ -95,6 +112,7 @@ export default function GroupProfile({ group, searchedName }: Props) {
               <tr>
                 <th scope="col">Name</th>
                 <th scope="col">Vendor</th>
+                <th scope="col">Name means</th>
                 <th scope="col">Relationship</th>
                 <th scope="col">Confidence</th>
                 <th scope="col">Source</th>
@@ -106,6 +124,11 @@ export default function GroupProfile({ group, searchedName }: Props) {
                   <td>{alias.name}</td>
                   <td>
                     <VendorCell alias={alias} />
+                  </td>
+                  <td>
+                    {alias.reading
+                      ? `${alias.reading.clue}: ${alias.reading.meaning}`
+                      : ""}
                   </td>
                   <td>{alias.relationship}</td>
                   <td>{alias.confidence}</td>
