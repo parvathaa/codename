@@ -14,6 +14,14 @@
   to = "https://codename-api-xb66.onrender.com/:splat"
   status = 200
   force = true
+  # The name of a secret stored in Netlify, not the secret itself.
+  signed = "API_SIGNATURE_TOKEN"
+
+  # Each visitor gets 60 requests a minute.
+  [redirects.rate_limit]
+    window_limit = 60
+    window_size = 60
+    aggregate_by = ["ip", "domain"]
 
 # Every other address opens the page.
 [[redirects]]

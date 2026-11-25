@@ -12,3 +12,5 @@ services:
     envVars:
       - key: DATABASE_URL
         sync: false
+      - key: API_SIGNATURE_TOKEN
+        sync: false

@@ -1,5 +1,6 @@
 """Codename's web API."""
 
+import os
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request
@@ -10,6 +11,7 @@ from pydantic import BaseModel
 from database import connect
 from lookup import normalize
 from rate_limit import RateLimiter
+from signature import is_signed
 
 app = FastAPI(
     title="Codename",
@@ -24,18 +26,18 @@ app = FastAPI(
 limiter = RateLimiter()
 
 
-def visitor_address(request):
-    """Best guess at who is asking. Headers can be faked, so this is only a guess."""
-    forwarded = request.headers.get("x-forwarded-for", "")
-    if forwarded:
-        return forwarded.split(",")[0].strip()[:64]
-    return request.client.host if request.client else "unknown"
-
-
 @app.middleware("http")
-async def limit_requests(request: Request, call_next):
-    limited = request.url.path.startswith(("/search", "/groups"))
-    if limited and not limiter.allow(visitor_address(request)):
+async def protect(request: Request, call_next):
+    # Render's health check comes straight to us and touches nothing.
+    if request.url.path == "/alive":
+        return await call_next(request)
+
+    # Online, only requests signed by our Netlify site are allowed.
+    secret = os.environ.get("API_SIGNATURE_TOKEN")
+    if secret and not is_signed(request.headers.get("x-nf-sign", ""), secret):
+        return JSONResponse({"detail": "Not allowed."}, status_code=403)
+
+    if not limiter.allow():
         return JSONResponse(
             {"detail": "Too many requests. Try again in a minute."},
             status_code=429,
