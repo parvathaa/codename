@@ -25,8 +25,8 @@ and what it is known for.
 - Every fact shown to users needs a source. Origins are suspected, not certain.
 
 ## Milestones
-1. `lookup.py`: search a local MITRE ATT&CK JSON file by any alias  <- current
-2. PostgreSQL schema and import script
+1. `lookup.py`: search a local MITRE ATT&CK JSON file by any alias (done)
+2. PostgreSQL schema and import script  <- current
 3. FastAPI: `/search` and `/groups/{id}`, with tests
 4. React search and profile pages
 5. Docker Compose
