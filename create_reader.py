@@ -25,7 +25,7 @@ def create_reader(connection, name, password):
         sql.SQL("GRANT USAGE ON SCHEMA public TO {}").format(role),
         sql.SQL(
             "GRANT SELECT ON public.groups, public.aliases, public.sources, "
-            "public.vendors TO {}"
+            "public.vendors, public.alias_vendors TO {}"
         ).format(role),
         sql.SQL("ALTER ROLE {} SET default_transaction_read_only = on").format(role),
         sql.SQL("ALTER ROLE {} SET statement_timeout = '5s'").format(role),

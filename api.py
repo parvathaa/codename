@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from database import connect
 from lookup import normalize
+from naming import likely_vendor
 from rate_limit import RateLimiter
 from signature import is_signed
 
@@ -66,9 +67,15 @@ class SearchResult(BaseModel):
     suggestions: list[str]
 
 
+class Vendor(BaseModel):
+    name: str
+    source: Source
+
+
 class Alias(BaseModel):
     name: str
-    vendor: str | None
+    vendors: list[Vendor]
+    likely_vendor: Vendor | None
     relationship: str
     confidence: str
     source: Source
@@ -194,18 +201,42 @@ def get_group(
 
     aliases = connection.execute(
         """
-        SELECT aliases.name, vendors.name AS vendor,
+        SELECT aliases.id, aliases.name,
                aliases.relationship, aliases.confidence,
                sources.title AS source_title, sources.url AS source_url
         FROM aliases
         JOIN sources ON sources.id = aliases.source_id
-        LEFT JOIN vendors ON vendors.id = aliases.vendor_id
         WHERE aliases.group_id = %s
         ORDER BY aliases.name, aliases.id
         """,
         (group_id,),
     ).fetchall()
 
+    claims = connection.execute(
+        """
+        SELECT alias_vendors.alias_id, vendors.name,
+               sources.title AS source_title, sources.url AS source_url
+        FROM alias_vendors
+        JOIN aliases ON aliases.id = alias_vendors.alias_id
+        JOIN vendors ON vendors.id = alias_vendors.vendor_id
+        JOIN sources ON sources.id = alias_vendors.source_id
+        WHERE aliases.group_id = %s
+        ORDER BY vendors.name, sources.id
+        """,
+        (group_id,),
+    ).fetchall()
+
+    vendors = {}
+    for claim in claims:
+        alias_id = claim.pop("alias_id")
+        vendors.setdefault(alias_id, []).append(move_source(claim))
+
     group = move_source(group)
     group["aliases"] = [move_source(alias) for alias in aliases]
+    for alias in group["aliases"]:
+        alias["vendors"] = vendors.get(alias.pop("id"), [])
+        # Only guess when no source has told us.
+        alias["likely_vendor"] = (
+            None if alias["vendors"] else likely_vendor(alias["name"])
+        )
     return group

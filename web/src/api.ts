@@ -9,9 +9,13 @@ export type Match = {
   source: Source;
 };
 
+export type Vendor = { name: string; source: Source };
+
 export type Alias = {
   name: string;
-  vendor: string | null;
+  // Missing only while an older version of the API is still running.
+  vendors?: Vendor[];
+  likely_vendor?: Vendor | null;
   relationship: string;
   confidence: string;
   source: Source;

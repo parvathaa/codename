@@ -6,7 +6,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY api.py database.py import_mitre.py lookup.py rate_limit.py signature.py ./
+COPY api.py database.py import_misp.py import_mitre.py lookup.py naming.py rate_limit.py signature.py ./
 
 RUN useradd --create-home appuser
 USER appuser

@@ -8,8 +8,6 @@ os.environ["DATABASE_URL"] = ""
 os.environ.pop("ENV_FILE", None)
 os.environ["API_SIGNATURE_TOKEN"] = ""
 
-from pathlib import Path
-
 import jwt
 import psycopg
 import pytest
@@ -20,10 +18,12 @@ import api
 from api import app, get_connection
 from create_reader import create_reader, reader_url
 from database import connect
+from import_misp import save_vendors, vendors_by_name
+from naming import likely_vendor
 from rate_limit import RateLimiter
+from setup_database import update_tables
 
 TEST_DB = "codename_test"
-DB_FOLDER = Path(__file__).parent.parent / "db"
 
 SAMPLE_DATA = """
 INSERT INTO sources (title, url) VALUES ('Test source', 'https://example.test');
@@ -36,6 +36,9 @@ INSERT INTO aliases (group_id, source_id, name, normalized_name, relationship) V
     (1, 1, 'Cozy Bear', 'cozy bear', 'unknown'),
     (2, 1, 'UAC-0056', 'uac-0056', 'unknown'),
     (3, 1, 'UAC-0056', 'uac-0056', 'unknown');
+INSERT INTO vendors (name) VALUES ('Mandiant'), ('Another Vendor');
+INSERT INTO alias_vendors (alias_id, vendor_id, source_id) VALUES
+    (1, 1, 1), (1, 2, 1);
 """
 
 
@@ -46,8 +49,7 @@ def client():
         admin.execute(f"CREATE DATABASE {TEST_DB}")
 
     with connect(dbname=TEST_DB, autocommit=True) as connection:
-        for filename in ("schema.sql", "002_fuzzy_search.sql"):
-            connection.execute((DB_FOLDER / filename).read_text(encoding="utf-8"))
+        update_tables(connection)
         connection.execute(SAMPLE_DATA)
 
     def use_test_database():
@@ -156,6 +158,71 @@ def reader(client):
     with connect(dbname=TEST_DB, autocommit=True) as owner:
         owner.execute(f"DROP OWNED BY {name}")
         owner.execute(f"DROP ROLE {name}")
+
+
+def test_group_page_shows_stated_likely_and_unknown_vendors(client):
+    apt29, cozy_bear = client.get("/groups/1").json()["aliases"]
+    assert [vendor["name"] for vendor in apt29["vendors"]] == [
+        "Another Vendor",
+        "Mandiant",
+    ]
+    assert apt29["vendors"][0]["source"]["url"] == "https://example.test"
+    assert apt29["likely_vendor"] is None
+
+    assert cozy_bear["vendors"] == []
+    assert cozy_bear["likely_vendor"]["name"] == "CrowdStrike"
+
+    uac = client.get("/groups/2").json()["aliases"][0]
+    assert uac["vendors"] == [] and uac["likely_vendor"] is None
+
+
+@pytest.mark.parametrize(
+    ("name", "vendor"),
+    [
+        ("Cozy Bear", "CrowdStrike"),
+        ("MIDNIGHT BLIZZARD", "Microsoft"),
+        ("Cloaked Ursa", "Palo Alto"),
+        ("APT29", None),
+        ("Bear", None),
+        ("Bear Group", None),
+        ("", None),
+    ],
+)
+def test_name_patterns(name, vendor):
+    guess = likely_vendor(name)
+    assert (guess["name"] if guess else None) == vendor
+
+
+def test_misp_entries_are_matched_to_vendors():
+    actors = [
+        {"meta": {"name-attribution": ["COZY  Bear:v1", "cozy bear:v2", "Odd:missing"]}},
+        {"meta": {}},
+        {},
+    ]
+    producers = [{"uuid": "v1", "value": "One"}, {"uuid": "v2", "value": "Two"}]
+    assert vendors_by_name(actors, producers) == {"cozy bear": {"One", "Two"}}
+
+
+def test_misp_import_can_run_again(client):
+    with connect(dbname=TEST_DB) as connection:
+        count = "SELECT count(*) FROM alias_vendors WHERE source_id <> 1"
+        for vendors, expected in (
+            ({"uac-0056": {"One", "Two"}, "not ours": {"Three"}}, 4),
+            ({"uac-0056": {"One", "Two"}}, 4),
+            ({"cozy bear": {"One"}}, 1),
+        ):
+            assert save_vendors(connection, vendors) == 1
+            assert connection.execute(count).fetchone()[0] == expected
+        extra = "SELECT count(*) FROM vendors WHERE name = 'Three'"
+        assert connection.execute(extra).fetchone()[0] == 0
+        connection.rollback()
+
+
+def test_updating_tables_again_changes_nothing(client):
+    with connect(dbname=TEST_DB, autocommit=True) as connection:
+        assert "001_schema.sql" not in update_tables(connection)
+        groups = connection.execute("SELECT count(*) FROM groups").fetchone()[0]
+        assert groups == 3
 
 
 def test_reader_can_do_everything_the_api_needs(reader):

@@ -1,4 +1,4 @@
-"""Create the tables in a new, empty database."""
+"""Create or update the tables. Safe to run again."""
 
 import sys
 from pathlib import Path
@@ -8,19 +8,22 @@ from database import connect
 DB_FOLDER = Path(__file__).parent / "db"
 
 
-def main():
-    with connect() as connection:
-        exists = connection.execute("SELECT to_regclass('public.groups')").fetchone()[0]
-
+def update_tables(connection):
+    """Run the SQL files that are needed, in order. Returns their names."""
+    files = sorted(DB_FOLDER.glob("[0-9]*.sql"))
+    exists = connection.execute("SELECT to_regclass('public.groups')").fetchone()[0]
     if exists:
-        print("The tables already exist. Nothing changed.")
-        return 0
+        files = [file for file in files if not file.name.startswith("001_")]
 
+    for file in files:
+        connection.execute(file.read_text(encoding="utf-8"))
+    return [file.name for file in files]
+
+
+def main():
     with connect(autocommit=True) as connection:
-        for filename in ("schema.sql", "002_fuzzy_search.sql"):
-            connection.execute((DB_FOLDER / filename).read_text(encoding="utf-8"))
-
-    print("Created the tables.")
+        for name in update_tables(connection):
+            print(f"Applied {name}")
     return 0
 
 

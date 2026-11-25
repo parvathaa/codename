@@ -34,7 +34,7 @@ services:
 
   importer:
     build: .
-    command: ["python", "import_mitre.py"]
+    command: ["sh", "-c", "python import_mitre.py && python import_misp.py"]
     environment: *database-settings
     volumes:
       - ./data:/app/data:ro
