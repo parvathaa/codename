@@ -1,4 +1,45 @@
-import type { Group } from "./api";
+import type { Alias, Group, Vendor } from "./api";
+
+function VendorLink({ vendor }: { vendor: Vendor }) {
+  return (
+    <a
+      href={vendor.source.url}
+      title={vendor.source.title}
+      target="_blank"
+      rel="noreferrer"
+    >
+      {vendor.name}
+    </a>
+  );
+}
+
+function VendorCell({ alias }: { alias: Alias }) {
+  const vendors = alias.vendors ?? [];
+  if (vendors.length > 0) {
+    return vendors.map((vendor, index) => (
+      <span key={`${vendor.name}-${vendor.source.url}`}>
+        {index > 0 && ", "}
+        <VendorLink vendor={vendor} />
+      </span>
+    ));
+  }
+  if (alias.likely_vendor) {
+    return (
+      <>
+        Likely <VendorLink vendor={alias.likely_vendor} />
+      </>
+    );
+  }
+  return "Not stated";
+}
+
+function vendorNote(alias: Alias) {
+  const vendors = alias.vendors ?? [];
+  if (vendors.length > 0) {
+    return vendors.map((vendor) => vendor.name).join(", ");
+  }
+  return alias.likely_vendor ? `likely ${alias.likely_vendor.name}` : "";
+}
 
 type Props = { group: Group; searchedName: string };
 
@@ -28,7 +69,12 @@ export default function GroupProfile({ group, searchedName }: Props) {
       {otherNames.length > 0 ? (
         <ul className="names">
           {otherNames.map((alias) => (
-            <li key={`${alias.name}-${alias.source.url}`}>{alias.name}</li>
+            <li key={`${alias.name}-${alias.source.url}`}>
+              {alias.name}
+              {vendorNote(alias) && (
+                <span className="vendor"> {vendorNote(alias)}</span>
+              )}
+            </li>
           ))}
         </ul>
       ) : (
@@ -38,6 +84,11 @@ export default function GroupProfile({ group, searchedName }: Props) {
       <details>
         <summary>Details for analysts</summary>
         {group.mitre_id && <p>MITRE ATT&amp;CK ID: {group.mitre_id}</p>}
+        <p>
+          Vendor is who created the name, according to MISP. “Likely” means no
+          source states it, but the name fits that vendor’s public naming
+          pattern.
+        </p>
         <div className="table-scroll">
           <table>
             <thead>
@@ -53,7 +104,9 @@ export default function GroupProfile({ group, searchedName }: Props) {
               {group.aliases.map((alias) => (
                 <tr key={`${alias.name}-${alias.source.url}`}>
                   <td>{alias.name}</td>
-                  <td>{alias.vendor ?? "Not stated"}</td>
+                  <td>
+                    <VendorCell alias={alias} />
+                  </td>
                   <td>{alias.relationship}</td>
                   <td>{alias.confidence}</td>
                   <td>

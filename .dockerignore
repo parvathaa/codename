@@ -2,7 +2,9 @@
 !requirements.txt
 !api.py
 !database.py
+!import_misp.py
 !import_mitre.py
 !lookup.py
+!naming.py
 !rate_limit.py
 !signature.py

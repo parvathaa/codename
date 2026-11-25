@@ -217,7 +217,9 @@ export default function App() {
       <footer>
         © 2026 The MITRE Corporation. This work is reproduced and distributed
         with the permission of The MITRE Corporation.{" "}
-        <a href="/mitre-attack-license.txt">MITRE ATT&amp;CK license</a>
+        <a href="/mitre-attack-license.txt">MITRE ATT&amp;CK license</a>. Vendor names
+        come from{" "}
+        <a href="https://github.com/MISP/misp-galaxy">MISP Galaxy</a> (CC0).
       </footer>
     </>
   );

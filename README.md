@@ -27,23 +27,26 @@ Online, covering the groups in MITRE ATT&CK.
 - Suggests names when the spelling is close
 - Lets you choose when a name belongs to more than one group
 - Shows a summary, other names and a source
+- Shows which vendor created a name, or a likely vendor from its naming pattern
 - Gives every search a link you can share
 
 ## Planned
 
 - Explain naming patterns, such as "Panda" or "Typhoon"
 - Show suspected origin, attacks, tools and techniques
-- Add which vendor created each name, and more sources
+- Add more sources
 
 ## Run it
 
 You need Docker.
 
-1. Download the MITRE data:
+1. Download the MITRE and MISP data:
 
    ```bash
    mkdir -p data
    curl -fL -o data/enterprise-attack.json https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack.json
+   curl -fL -o data/misp-threat-actor.json https://raw.githubusercontent.com/MISP/misp-galaxy/main/clusters/threat-actor.json
+   curl -fL -o data/misp-producer.json https://raw.githubusercontent.com/MISP/misp-galaxy/main/clusters/producer.json
    ```
 
 2. Create your settings, start the app and load the data:
@@ -69,7 +72,7 @@ python -m pytest
 
 ## How it works
 
-React page → FastAPI → PostgreSQL. A separate script imports the MITRE data.
+React page → FastAPI → PostgreSQL. Separate scripts import the MITRE and MISP data.
 
 | Part | On your computer | Online |
 |---|---|---|
@@ -95,3 +98,5 @@ assessment rather than a proven fact. Codename links to its sources, and says
 
 © 2026 The MITRE Corporation. This work is reproduced and distributed with the
 permission of The MITRE Corporation.
+
+Vendor names come from [MISP Galaxy](https://github.com/MISP/misp-galaxy) (CC0).
