@@ -49,6 +49,12 @@ def client():
         admin.execute(f"DROP DATABASE {TEST_DB}")
 
 
+def test_health(client):
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
 def test_search_finds_an_alias(client):
     response = client.get("/search", params={"q": "cozy bear"})
     assert response.status_code == 200

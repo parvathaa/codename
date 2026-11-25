@@ -4,8 +4,8 @@ Look up a hacker group by any of its names.
 
 Security companies often give the same group different names. For example,
 APT29, Cozy Bear and Midnight Blizzard are names used for the same group.
-Codename will let you enter a name you saw in the news and learn who the group
-is, where it is thought to be from, and what it is known for.
+Codename lets you enter a name you saw in the news and learn who the group is
+and what it is known for.
 
 ## Who it's for
 
@@ -14,19 +14,58 @@ is, where it is thought to be from, and what it is known for.
 
 ## Status
 
-Early development. The first milestone is a Python script that looks up a group
-in MITRE ATT&CK data.
+Working on a local computer, not online yet. It covers the groups in MITRE
+ATT&CK.
 
-## Planned features
+## What it does
 
-- Search by any known alias
+- Finds a group by any name MITRE lists
+- Suggests names when the spelling is close
+- Lets you choose when a name belongs to more than one group
+- Shows a summary, other names and a source
+- Gives every search a link you can share
+
+## Planned
+
 - Explain naming patterns, such as "Panda" or "Typhoon"
-- Show a group's history, attacks, tools and techniques
-- Cite a source for every claim
+- Show suspected origin, attacks, tools and techniques
+- Add which vendor created each name, and more sources
 
-## Planned tech
+## Run it
 
-Python, FastAPI, PostgreSQL, React, TypeScript and Docker.
+You need Docker.
+
+1. Download the MITRE data:
+
+   ```bash
+   mkdir -p data
+   curl -fL -o data/enterprise-attack.json https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack.json
+   ```
+
+2. Create your settings, start the app and load the data:
+
+   ```bash
+   cp .env.example .env
+   docker compose up -d --build
+   docker compose run --rm importer
+   ```
+
+3. Open http://localhost:8080
+
+## Run the tests
+
+You need Python 3.13, and the database must be running.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-dev.txt
+python -m pytest
+```
+
+## How it works
+
+React page → FastAPI → PostgreSQL. A separate script imports the MITRE data.
 
 ## Why I'm building it
 
@@ -36,5 +75,10 @@ something useful for people who follow cybersecurity.
 ## A note on accuracy
 
 Vendor names do not always match exactly, and a group's origin is usually an
-assessment rather than a proven fact. Codename will show its sources and how
-confident each claim is.
+assessment rather than a proven fact. Codename links to its sources, and says
+"unknown" when a source does not state how closely two names match.
+
+## Data
+
+© 2026 The MITRE Corporation. This work is reproduced and distributed with the
+permission of The MITRE Corporation.
