@@ -3,7 +3,7 @@ services:
     name: codename-api
     runtime: docker
     plan: free
-    region: frankfurt
+    region: ohio
     branch: main
     dockerfilePath: ./Dockerfile
     dockerContext: .
