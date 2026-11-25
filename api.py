@@ -103,6 +103,13 @@ def find_suggestions(connection, name):
     return [row["name"] for row in rows]
 
 
+@app.get("/health")
+def health(connection: Connection) -> dict[str, str]:
+    """Confirm that the API can reach its database."""
+    connection.execute("SELECT 1")
+    return {"status": "ok"}
+
+
 @app.get("/search")
 def search(
     q: Annotated[str, Query(min_length=1, max_length=100)],

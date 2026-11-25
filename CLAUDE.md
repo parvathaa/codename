@@ -28,8 +28,8 @@ and what it is known for.
 1. `lookup.py`: search a local MITRE ATT&CK JSON file by any alias (done)
 2. PostgreSQL schema and import script (done)
 3. FastAPI: `/search` and `/groups/{id}`, with tests (done)
-4. React search and profile pages  <- current
-5. Docker Compose
+4. React search and profile pages (done)
+5. Docker Compose  <- current
 6. GitHub Actions and deployment
 7. News feeds, then AI summaries with citations
 
