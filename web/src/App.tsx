@@ -1,20 +1,31 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { getGroup, searchGroups, type Group, type Match } from "./api";
+import {
+  ApiError,
+  getGroup,
+  searchGroups,
+  type Group,
+  type Match,
+} from "./api";
 import GroupProfile from "./GroupProfile";
 
 type View =
   | { kind: "start" }
-  | { kind: "loading" }
-  | { kind: "error" }
+  | { kind: "loading"; slow: boolean }
+  | { kind: "error"; tooMany: boolean }
   | { kind: "none"; name: string; suggestions: string[] }
   | { kind: "choose"; name: string; matches: Match[] }
   | { kind: "group"; group: Group; searchedName: string };
 
 const EXAMPLES = ["Cozy Bear", "Lazarus Group", "UAC-0056"];
 const MAX_LENGTH = 100;
+const SLOW_AFTER_MS = 4_000;
 
-async function loadView(name: string, groupId: number | null): Promise<View> {
-  const { matches, suggestions } = await searchGroups(name);
+async function loadView(
+  name: string,
+  groupId: number | null,
+  signal: AbortSignal,
+): Promise<View> {
+  const { matches, suggestions } = await searchGroups(name, signal);
   if (matches.length === 0) return { kind: "none", name, suggestions };
 
   const chosen =
@@ -25,7 +36,7 @@ async function loadView(name: string, groupId: number | null): Promise<View> {
 
   return {
     kind: "group",
-    group: await getGroup(chosen.group_id),
+    group: await getGroup(chosen.group_id, signal),
     searchedName: chosen.matched_name,
   };
 }
@@ -33,10 +44,13 @@ async function loadView(name: string, groupId: number | null): Promise<View> {
 export default function App() {
   const [text, setText] = useState("");
   const [view, setView] = useState<View>({ kind: "start" });
-  const latestRequest = useRef(0);
+  const currentRequest = useRef<AbortController | null>(null);
 
   async function showAddress() {
-    const request = ++latestRequest.current;
+    currentRequest.current?.abort();
+    const request = new AbortController();
+    currentRequest.current = request;
+
     const params = new URLSearchParams(window.location.search);
     const name = (params.get("q") ?? "").trim().slice(0, MAX_LENGTH);
     const group = params.get("group");
@@ -47,23 +61,30 @@ export default function App() {
       return;
     }
 
-    setView({ kind: "loading" });
+    setView({ kind: "loading", slow: false });
+    const slowTimer = setTimeout(() => {
+      if (!request.signal.aborted) setView({ kind: "loading", slow: true });
+    }, SLOW_AFTER_MS);
+
     let next: View;
     try {
-      next = await loadView(name, group ? Number(group) : null);
-    } catch {
-      next = { kind: "error" };
+      next = await loadView(name, group ? Number(group) : null, request.signal);
+    } catch (error) {
+      const tooMany = error instanceof ApiError && error.status === 429;
+      next = { kind: "error", tooMany };
     }
 
-    if (request === latestRequest.current) {
-      setView(next);
-    }
+    clearTimeout(slowTimer);
+    if (!request.signal.aborted) setView(next);
   }
 
   useEffect(() => {
     showAddress();
     window.addEventListener("popstate", showAddress);
-    return () => window.removeEventListener("popstate", showAddress);
+    return () => {
+      window.removeEventListener("popstate", showAddress);
+      currentRequest.current?.abort();
+    };
   }, []);
 
   useEffect(() => {
@@ -131,12 +152,19 @@ export default function App() {
             </p>
           )}
 
-          {view.kind === "loading" && <p>Searching…</p>}
+          {view.kind === "loading" && (
+            <p>
+              {view.slow
+                ? "Waking up the server. This can take about a minute."
+                : "Searching…"}
+            </p>
+          )}
 
           {view.kind === "error" && (
             <p>
-              Codename can’t reach its database right now. Please try again in a
-              moment.
+              {view.tooMany
+                ? "Too many searches at once. Please wait a minute and try again."
+                : "Codename can’t reach its server right now. Please try again in a few minutes."}
             </p>
           )}
 
@@ -188,7 +216,8 @@ export default function App() {
 
       <footer>
         © 2026 The MITRE Corporation. This work is reproduced and distributed
-        with the permission of The MITRE Corporation.
+        with the permission of The MITRE Corporation.{" "}
+        <a href="/mitre-attack-license.txt">MITRE ATT&amp;CK license</a>
       </footer>
     </>
   );
