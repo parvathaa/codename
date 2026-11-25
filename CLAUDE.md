@@ -26,8 +26,8 @@ and what it is known for.
 
 ## Milestones
 1. `lookup.py`: search a local MITRE ATT&CK JSON file by any alias (done)
-2. PostgreSQL schema and import script  <- current
-3. FastAPI: `/search` and `/groups/{id}`, with tests
+2. PostgreSQL schema and import script (done)
+3. FastAPI: `/search` and `/groups/{id}`, with tests  <- current
 4. React search and profile pages
 5. Docker Compose
 6. GitHub Actions and deployment

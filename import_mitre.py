@@ -1,25 +1,10 @@
 """Copy MITRE ATT&CK groups and their names into PostgreSQL."""
 
-import os
 import re
 import sys
 
-import psycopg
-from dotenv import load_dotenv
-
+from database import connect
 from lookup import DATA_FILE, load_groups, normalize
-
-
-def connect():
-    """Open a database connection using the settings in .env."""
-    load_dotenv()
-    return psycopg.connect(
-        host="127.0.0.1",
-        port=5432,
-        user=os.environ["POSTGRES_USER"],
-        password=os.environ["POSTGRES_PASSWORD"],
-        dbname=os.environ["POSTGRES_DB"],
-    )
 
 
 def clean_text(text):
