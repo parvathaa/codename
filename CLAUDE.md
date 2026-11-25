@@ -11,8 +11,9 @@ and what it is known for.
   sources, technique IDs, export).
 
 ## How to work with me
-- I write the code. Explain the idea, give me one small task, then review what I wrote.
-- Give hints before answers. Do not write whole features unless I ask.
+- Give me the code in small, tested pieces and explain it in detail. Do not ask me to
+  write code from scratch.
+- I run the commands, Git steps and pull requests myself, so explain those too.
 - I am fairly comfortable with Python. Assume I am new to SQL, JavaScript, Docker and Git.
 - Use simple words and explain why, not only how.
 
