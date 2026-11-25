@@ -1,0 +1,60 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Start the database
+        run: |
+          cp .env.example .env
+          docker compose up -d --wait db
+      - name: Install packages
+        run: python -m pip install -r requirements-dev.txt
+      - name: Run the API tests
+        run: python -m pytest
+
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Install packages
+        run: npm ci
+      - name: Check types and build
+        run: npm run build
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build and start the whole app
+        run: |
+          cp .env.example .env
+          docker compose up -d --build --wait
+      - name: Check the page and API
+        run: |
+          curl --fail --silent --show-error --retry 10 --retry-delay 1 --retry-all-errors --output /dev/null http://127.0.0.1:8080/
+          curl --fail --silent --show-error --retry 10 --retry-delay 1 --retry-all-errors http://127.0.0.1:8080/api/health
+      - name: Show messages if something failed
+        if: failure()
+        run: docker compose logs

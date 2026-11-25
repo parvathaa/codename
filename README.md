@@ -1,5 +1,7 @@
 # Codename
 
+[![Tests](https://github.com/parvathaa/codename/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/parvathaa/codename/actions/workflows/tests.yml)
+
 Look up a hacker group by any of its names.
 
 Security companies often give the same group different names. For example,

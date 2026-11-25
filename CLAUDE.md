@@ -29,8 +29,8 @@ and what it is known for.
 2. PostgreSQL schema and import script (done)
 3. FastAPI: `/search` and `/groups/{id}`, with tests (done)
 4. React search and profile pages (done)
-5. Docker Compose  <- current
-6. GitHub Actions and deployment
+5. Docker Compose (done)
+6. GitHub Actions and deployment  <- current
 7. News feeds, then AI summaries with citations
 
 ## Milestone 1 is done when
