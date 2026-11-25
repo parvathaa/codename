@@ -1,31 +1,27 @@
-"""Limit how many requests the API accepts each minute."""
+"""Limit how many requests the API accepts each minute, from everyone together.
+
+Netlify limits each visitor, because it can see who is really connecting.
+"""
 
 import time
-from collections import Counter
 
-PER_VISITOR = 60
-EVERYONE = 600
+PER_MINUTE = 600
 
 
 class RateLimiter:
-    def __init__(self, per_visitor=PER_VISITOR, everyone=EVERYONE, clock=time.monotonic):
-        self.per_visitor = per_visitor
-        self.everyone = everyone
+    def __init__(self, per_minute=PER_MINUTE, clock=time.monotonic):
+        self.per_minute = per_minute
         self.clock = clock
         self.minute = None
-        self.visitors = Counter()
         self.total = 0
 
-    def allow(self, visitor):
+    def allow(self):
         minute = int(self.clock() // 60)
         if minute != self.minute:
             self.minute = minute
-            self.visitors.clear()
             self.total = 0
 
-        if self.total >= self.everyone or self.visitors[visitor] >= self.per_visitor:
+        if self.total >= self.per_minute:
             return False
-
         self.total += 1
-        self.visitors[visitor] += 1
         return True
