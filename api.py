@@ -2,12 +2,14 @@
 
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Path, Query
+from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request
+from fastapi.responses import JSONResponse
 from psycopg.rows import dict_row
 from pydantic import BaseModel
 
 from database import connect
 from lookup import normalize
+from rate_limit import RateLimiter
 
 app = FastAPI(
     title="Codename",
@@ -17,6 +19,29 @@ app = FastAPI(
         "with the permission of The MITRE Corporation."
     ),
 )
+
+
+limiter = RateLimiter()
+
+
+def visitor_address(request):
+    """Best guess at who is asking. Headers can be faked, so this is only a guess."""
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()[:64]
+    return request.client.host if request.client else "unknown"
+
+
+@app.middleware("http")
+async def limit_requests(request: Request, call_next):
+    limited = request.url.path.startswith(("/search", "/groups"))
+    if limited and not limiter.allow(visitor_address(request)):
+        return JSONResponse(
+            {"detail": "Too many requests. Try again in a minute."},
+            status_code=429,
+            headers={"Retry-After": "60"},
+        )
+    return await call_next(request)
 
 
 class Source(BaseModel):
@@ -101,6 +126,12 @@ def find_suggestions(connection, name):
         {"name": name},
     ).fetchall()
     return [row["name"] for row in rows]
+
+
+@app.get("/alive")
+def alive() -> dict[str, str]:
+    """Confirm that the API is running, without waking the database."""
+    return {"status": "ok"}
 
 
 @app.get("/health")

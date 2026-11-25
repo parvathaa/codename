@@ -6,9 +6,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY api.py database.py import_mitre.py lookup.py ./
+COPY api.py database.py import_mitre.py lookup.py rate_limit.py ./
 
 RUN useradd --create-home appuser
 USER appuser
 
-CMD ["python", "-m", "uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "exec python -m uvicorn api:app --host 0.0.0.0 --port ${PORT:-8000}"]

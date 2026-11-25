@@ -1,13 +1,22 @@
 """Test the API with a small temporary database."""
 
+import os
+
+# Never let the tests touch an online database.
+os.environ["DATABASE_URL"] = ""
+os.environ.pop("ENV_FILE", None)
+
 from pathlib import Path
 
+import psycopg
 import pytest
 from fastapi.testclient import TestClient
 from psycopg.rows import dict_row
 
+import api
 from api import app, get_connection
 from database import connect
+from rate_limit import RateLimiter
 
 TEST_DB = "codename_test"
 DB_FOLDER = Path(__file__).parent.parent / "db"
@@ -47,6 +56,59 @@ def client():
 
     with connect(dbname="postgres", autocommit=True) as admin:
         admin.execute(f"DROP DATABASE {TEST_DB}")
+
+
+@pytest.fixture(autouse=True)
+def fresh_limiter(monkeypatch):
+    monkeypatch.setattr(api, "limiter", RateLimiter())
+
+
+def test_alive_does_not_need_the_database(client):
+    assert client.get("/alive").json() == {"status": "ok"}
+
+
+def test_one_visitor_is_limited(client, monkeypatch):
+    monkeypatch.setattr(api, "limiter", RateLimiter(per_visitor=2, everyone=100))
+    headers = {"X-Forwarded-For": "192.0.2.1"}
+    statuses = [
+        client.get("/search?q=apt29", headers=headers).status_code for _ in range(3)
+    ]
+    assert statuses == [200, 200, 429]
+
+    other = client.get("/search?q=apt29", headers={"X-Forwarded-For": "192.0.2.2"})
+    assert other.status_code == 200
+    assert client.get("/health", headers=headers).status_code == 200
+
+
+def test_everyone_together_is_limited_even_with_fake_addresses(client, monkeypatch):
+    monkeypatch.setattr(api, "limiter", RateLimiter(per_visitor=100, everyone=2))
+    statuses = [
+        client.get(
+            "/search?q=apt29", headers={"X-Forwarded-For": f"192.0.2.{n}"}
+        ).status_code
+        for n in range(3)
+    ]
+    assert statuses == [200, 200, 429]
+
+
+def test_limit_resets_each_minute():
+    now = [0]
+    limiter = RateLimiter(per_visitor=1, everyone=10, clock=lambda: now[0])
+    assert limiter.allow("a")
+    assert not limiter.allow("a")
+    now[0] = 60
+    assert limiter.allow("a")
+
+
+def test_online_database_must_be_encrypted(monkeypatch):
+    user, password, name = (
+        os.environ[key] for key in ("POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB")
+    )
+    monkeypatch.setenv(
+        "DATABASE_URL", f"postgresql://{user}:{password}@localhost:5432/{name}?sslmode=disable"
+    )
+    with pytest.raises(psycopg.OperationalError, match="SSL"):
+        connect()
 
 
 def test_health(client):
