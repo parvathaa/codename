@@ -36,6 +36,7 @@ class Match(BaseModel):
 class SearchResult(BaseModel):
     query: str
     matches: list[Match]
+    suggestions: list[str]
 
 
 class Alias(BaseModel):
@@ -71,6 +72,37 @@ def move_source(row):
     return row
 
 
+def find_suggestions(connection, name):
+    """Find up to five known names that look like a misspelled one."""
+    if len(name) < 3:
+        return []
+
+    rows = connection.execute(
+        """
+        SELECT name FROM (
+            SELECT MIN(name) AS name,
+                   MAX(CASE
+                       WHEN regexp_replace(normalized_name, '[^[:alnum:]]', '', 'g')
+                          = regexp_replace(%(name)s, '[^[:alnum:]]', '', 'g')
+                       THEN 2
+                       ELSE GREATEST(
+                           similarity(normalized_name, %(name)s),
+                           word_similarity(%(name)s, normalized_name)
+                       )
+                   END) AS score,
+                   MAX(similarity(normalized_name, %(name)s)) AS whole_score
+            FROM aliases
+            GROUP BY normalized_name
+        ) AS scored
+        WHERE score >= 0.43
+        ORDER BY score DESC, whole_score DESC, name
+        LIMIT 5
+        """,
+        {"name": name},
+    ).fetchall()
+    return [row["name"] for row in rows]
+
+
 @app.get("/search")
 def search(
     q: Annotated[str, Query(min_length=1, max_length=100)],
@@ -94,7 +126,11 @@ def search(
         """,
         (name,),
     ).fetchall()
-    return {"query": q, "matches": [move_source(row) for row in rows]}
+    return {
+        "query": q,
+        "matches": [move_source(row) for row in rows],
+        "suggestions": [] if rows else find_suggestions(connection, name),
+    }
 
 
 @app.get("/groups/{group_id}")

@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { getGroup, searchGroups, type Group, type Match } from "./api";
 import GroupProfile from "./GroupProfile";
 
@@ -6,24 +6,51 @@ type View =
   | { kind: "start" }
   | { kind: "loading" }
   | { kind: "error" }
-  | { kind: "none"; name: string }
+  | { kind: "none"; name: string; suggestions: string[] }
   | { kind: "choose"; name: string; matches: Match[] }
   | { kind: "group"; group: Group; searchedName: string };
 
 const EXAMPLES = ["Cozy Bear", "Lazarus Group", "UAC-0056"];
+const MAX_LENGTH = 100;
+
+async function loadView(name: string, groupId: number | null): Promise<View> {
+  const { matches, suggestions } = await searchGroups(name);
+  if (matches.length === 0) return { kind: "none", name, suggestions };
+
+  const chosen =
+    matches.length === 1
+      ? matches[0]
+      : matches.find((match) => match.group_id === groupId);
+  if (!chosen) return { kind: "choose", name, matches };
+
+  return {
+    kind: "group",
+    group: await getGroup(chosen.group_id),
+    searchedName: chosen.matched_name,
+  };
+}
 
 export default function App() {
   const [text, setText] = useState("");
   const [view, setView] = useState<View>({ kind: "start" });
   const latestRequest = useRef(0);
 
-  async function show(load: () => Promise<View>) {
+  async function showAddress() {
     const request = ++latestRequest.current;
-    setView({ kind: "loading" });
+    const params = new URLSearchParams(window.location.search);
+    const name = (params.get("q") ?? "").trim().slice(0, MAX_LENGTH);
+    const group = params.get("group");
 
+    setText(name);
+    if (!name) {
+      setView({ kind: "start" });
+      return;
+    }
+
+    setView({ kind: "loading" });
     let next: View;
     try {
-      next = await load();
+      next = await loadView(name, group ? Number(group) : null);
     } catch {
       next = { kind: "error" };
     }
@@ -33,31 +60,34 @@ export default function App() {
     }
   }
 
-  function openGroup(match: Match) {
-    return show(async () => ({
-      kind: "group",
-      group: await getGroup(match.group_id),
-      searchedName: match.matched_name,
-    }));
-  }
+  useEffect(() => {
+    showAddress();
+    window.addEventListener("popstate", showAddress);
+    return () => window.removeEventListener("popstate", showAddress);
+  }, []);
 
-  function search(name: string) {
-    return show(async () => {
-      const matches = await searchGroups(name);
-      if (matches.length === 0) return { kind: "none", name };
-      if (matches.length > 1) return { kind: "choose", name, matches };
-      return {
-        kind: "group",
-        group: await getGroup(matches[0].group_id),
-        searchedName: matches[0].matched_name,
-      };
-    });
+  useEffect(() => {
+    document.title =
+      view.kind === "group"
+        ? `${view.group.main_name} | Codename`
+        : "Codename: look up a hacker group";
+  }, [view]);
+
+  function go(name: string, groupId?: number) {
+    const params = new URLSearchParams({ q: name });
+    if (groupId !== undefined) params.set("group", String(groupId));
+
+    const address = `/?${params}`;
+    if (address !== window.location.pathname + window.location.search) {
+      window.history.pushState(null, "", address);
+    }
+    showAddress();
   }
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const name = text.trim();
-    if (name) search(name);
+    if (name) go(name);
   }
 
   return (
@@ -77,7 +107,7 @@ export default function App() {
               value={text}
               onChange={(event) => setText(event.target.value)}
               placeholder="Cozy Bear"
-              maxLength={100}
+              maxLength={MAX_LENGTH}
               autoComplete="off"
             />
             <button type="submit">Search</button>
@@ -93,10 +123,7 @@ export default function App() {
                   key={name}
                   type="button"
                   className="link"
-                  onClick={() => {
-                    setText(name);
-                    search(name);
-                  }}
+                  onClick={() => go(name)}
                 >
                   {name}
                 </button>
@@ -114,10 +141,27 @@ export default function App() {
           )}
 
           {view.kind === "none" && (
-            <p>
-              No group found for “{view.name}”. Check the spelling, or try
-              another name from the same article.
-            </p>
+            <>
+              <p>
+                No group found for “{view.name}”.{" "}
+                {view.suggestions.length === 0 &&
+                  "Check the spelling, or try another name from the same article."}
+              </p>
+              {view.suggestions.length > 0 && (
+                <>
+                  <h2>Did you mean one of these?</h2>
+                  <ul className="choices">
+                    {view.suggestions.map((name) => (
+                      <li key={name}>
+                        <button type="button" onClick={() => go(name)}>
+                          {name}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </>
           )}
 
           {view.kind === "choose" && (
@@ -127,7 +171,7 @@ export default function App() {
               <ul className="choices">
                 {view.matches.map((match) => (
                   <li key={`${match.group_id}-${match.source.url}`}>
-                    <button type="button" onClick={() => openGroup(match)}>
+                    <button type="button" onClick={() => go(view.name, match.group_id)}>
                       {match.main_name}
                     </button>
                   </li>
