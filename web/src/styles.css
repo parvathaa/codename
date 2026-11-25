@@ -1,0 +1,86 @@
+:root {
+  color-scheme: light dark;
+  --page: light-dark(#f6f7f5, #14181a);
+  --panel: light-dark(#ffffff, #1c2225);
+  --text: light-dark(#1b2326, #e6ebe9);
+  --muted: light-dark(#566266, #9aa7a8);
+  --line: light-dark(#d5dbd8, #364044);
+  --accent: light-dark(#0b6158, #6fd0c2);
+  --on-accent: light-dark(#ffffff, #0c1b19);
+  font-family: system-ui, sans-serif;
+  line-height: 1.6;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text);
+}
+
+main, footer {
+  width: min(44rem, 100%);
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+main { padding-top: clamp(2rem, 8vw, 5rem); }
+
+h1, h2, h3 { line-height: 1.2; text-wrap: balance; }
+h1 { margin: 0; font-size: 2.25rem; letter-spacing: -0.02em; }
+h2 { margin: 0 0 1rem; font-size: 1.75rem; overflow-wrap: anywhere; }
+h3 { margin: 2rem 0 0.75rem; font-size: 1.1rem; }
+header p { margin: 0.5rem 0 2rem; color: var(--muted); }
+
+label { display: block; margin-bottom: 0.4rem; font-weight: 600; }
+.search-row { display: flex; gap: 0.5rem; }
+
+input, button { font: inherit; border-radius: 6px; }
+
+input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--muted);
+  background: var(--panel);
+  color: var(--text);
+}
+
+button {
+  padding: 0.7rem 1.1rem;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.link {
+  padding: 0.25rem 0.5rem;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-weight: 400;
+  text-decoration: underline;
+}
+
+a { color: var(--accent); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+section { margin-top: 2rem; overflow-wrap: anywhere; }
+.examples { color: var(--muted); }
+.matched { margin: 0 0 0.25rem; color: var(--muted); }
+.summary { white-space: pre-line; }
+
+.names, .choices { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0; list-style: none; }
+.names li { padding: 0.2rem 0.6rem; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+
+details { margin-top: 2rem; border-block: 1px solid var(--line); padding: 0.9rem 0; }
+details summary { font-weight: 600; cursor: pointer; }
+.table-scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; overflow-wrap: normal; }
+th, td { padding: 0.5rem 1rem 0.5rem 0; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+
+.source, footer { color: var(--muted); font-size: 0.875rem; }
+footer { padding-block: 4rem 2rem; }
