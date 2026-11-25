@@ -35,11 +35,10 @@ async function getJson<T>(path: string): Promise<T> {
   return response.json();
 }
 
-export async function searchGroups(name: string): Promise<Match[]> {
-  const result = await getJson<{ matches: Match[] }>(
-    `/search?q=${encodeURIComponent(name)}`,
-  );
-  return result.matches;
+export type SearchResult = { matches: Match[]; suggestions: string[] };
+
+export function searchGroups(name: string): Promise<SearchResult> {
+  return getJson<SearchResult>(`/search?q=${encodeURIComponent(name)}`);
 }
 
 export function getGroup(id: number): Promise<Group> {

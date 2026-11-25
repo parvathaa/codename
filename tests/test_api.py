@@ -10,7 +10,7 @@ from api import app, get_connection
 from database import connect
 
 TEST_DB = "codename_test"
-SCHEMA = Path(__file__).parent.parent / "db" / "schema.sql"
+DB_FOLDER = Path(__file__).parent.parent / "db"
 
 SAMPLE_DATA = """
 INSERT INTO sources (title, url) VALUES ('Test source', 'https://example.test');
@@ -33,7 +33,8 @@ def client():
         admin.execute(f"CREATE DATABASE {TEST_DB}")
 
     with connect(dbname=TEST_DB, autocommit=True) as connection:
-        connection.execute(SCHEMA.read_text(encoding="utf-8"))
+        for filename in ("schema.sql", "002_fuzzy_search.sql"):
+            connection.execute((DB_FOLDER / filename).read_text(encoding="utf-8"))
         connection.execute(SAMPLE_DATA)
 
     def use_test_database():
@@ -68,10 +69,42 @@ def test_search_returns_every_group_sharing_a_name(client):
     assert names == ["Ember Bear", "Saint Bear"]
 
 
-def test_unknown_name_returns_no_matches(client):
+def test_unknown_name_returns_nothing(client):
     response = client.get("/search", params={"q": "purple toaster"})
     assert response.status_code == 200
     assert response.json()["matches"] == []
+    assert response.json()["suggestions"] == []
+
+
+@pytest.mark.parametrize(
+    ("typo", "expected"),
+    [("cosy bear", "Cozy Bear"), ("cozybear", "Cozy Bear"), ("apt 29", "APT29")],
+)
+def test_typo_suggests_the_right_name_first(client, typo, expected):
+    result = client.get("/search", params={"q": typo}).json()
+    assert result["matches"] == []
+    assert result["suggestions"][0] == expected
+
+
+def test_exact_match_has_no_suggestions(client):
+    result = client.get("/search", params={"q": "apt29"}).json()
+    assert result["suggestions"] == []
+
+
+def test_very_short_search_has_no_suggestions(client):
+    result = client.get("/search", params={"q": "a"}).json()
+    assert result["suggestions"] == []
+
+
+def test_shared_name_is_suggested_once(client):
+    result = client.get("/search", params={"q": "uac 0056"}).json()
+    assert result["suggestions"].count("UAC-0056") == 1
+
+
+def test_symbols_only_search_is_safe(client):
+    response = client.get("/search", params={"q": "%%% --- '"})
+    assert response.status_code == 200
+    assert response.json()["suggestions"] == []
 
 
 @pytest.mark.parametrize("bad", ["", "   ", "x" * 101, "bad\x00name"])
