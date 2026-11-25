@@ -4,6 +4,9 @@
 
 Look up a hacker group by any of its names.
 
+**[Try it live](https://codename-lookup.netlify.app)**. The first search can take
+about a minute while the free server wakes up.
+
 Security companies often give the same group different names. For example,
 APT29, Cozy Bear and Midnight Blizzard are names used for the same group.
 Codename lets you enter a name you saw in the news and learn who the group is
@@ -16,8 +19,7 @@ and what it is known for.
 
 ## Status
 
-Working on a local computer, not online yet. It covers the groups in MITRE
-ATT&CK.
+Online, covering the groups in MITRE ATT&CK.
 
 ## What it does
 
@@ -68,6 +70,15 @@ python -m pytest
 ## How it works
 
 React page → FastAPI → PostgreSQL. A separate script imports the MITRE data.
+
+| Part | On your computer | Online |
+|---|---|---|
+| Page | nginx in Docker | Netlify |
+| API | Docker | Render |
+| Database | Docker | Neon |
+
+GitHub Actions runs the tests on every pull request. Render deploys changes to
+`main` only after they pass.
 
 ## Why I'm building it
 

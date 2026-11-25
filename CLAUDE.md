@@ -30,8 +30,8 @@ and what it is known for.
 3. FastAPI: `/search` and `/groups/{id}`, with tests (done)
 4. React search and profile pages (done)
 5. Docker Compose (done)
-6. GitHub Actions and deployment  <- current
-7. News feeds, then AI summaries with citations
+6. GitHub Actions and deployment (done): https://codename-lookup.netlify.app
+7. News feeds, then AI summaries with citations  <- current
 
 ## Milestone 1 is done when
 - `python3 lookup.py "cozy bear"` prints the group, its aliases and its description.
